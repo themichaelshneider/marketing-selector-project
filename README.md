@@ -15,6 +15,8 @@
 ## Установка
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -36,6 +38,9 @@ MarketingSelector/
 │   ├── ahp.py            # АИИ-ранжирование каналов
 │   ├── game.py           # равновесие Нэша
 │   └── models.py         # Pydantic-схемы
+├── docs/
+│   ├── scenarios.md      # демо-сценарии
+│   └── coverage/         # отчёт о покрытии тестов
 ├── ui/
 │   ├── app.py            # Streamlit-приложение
 │   └── components.py     # UI-компоненты
@@ -53,10 +58,21 @@ MarketingSelector/
 pytest --cov=. --cov-report=term
 ```
 
+## Демо-сценарии
+
+Три готовых сценария для проверки приложения — см. [`docs/scenarios.md`](docs/scenarios.md):
+
+| Сценарий | Веса критериев | Бюджет | Ожидаемый лидер |
+|---|---|---|---|
+| **Штатный** | Охват=5, CAC=5, Релев=5 | 1 000 000 | Telegram |
+| **Агрессивный охват** | Охват=10, CAC=0, Релев=0 | 2 000 000 | ТВ |
+| **Эконом-режим** | Охват=0, CAC=10, Релев=0 | 500 000 | Telegram |
+
 ## Стек
 
 - **scikit-criteria** — метод взвешенной суммы для многокритериального анализа
 - **Nashpy** — поиск равновесия Нэша в биматричных играх
 - **Streamlit** — веб-интерфейс
 - **Pydantic** — валидация данных
+- **matplotlib** — визуализация (круговые диаграммы)
 - **pytest** — тестирование
