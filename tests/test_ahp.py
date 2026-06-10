@@ -90,3 +90,21 @@ def test_single_channel():
     assert len(ratings) == 1
     assert ratings[0].rank == 1
     assert ratings[0].name == "Единственный"
+
+
+def test_all_values_equal_for_min_criterion():
+    """Если все значения MIN-критерия равны — деления на ноль не происходит."""
+    channels = [
+        ChannelData(name="A", reach=50, cac=100, relevance=5),
+        ChannelData(name="B", reach=80, cac=100, relevance=5),
+    ]
+    criteria = [
+        CriterionDef(name="Охват", key="reach", higher_is_better=True),
+        CriterionDef(name="CAC", key="cac", higher_is_better=False),
+        CriterionDef(name="Релевантность", key="relevance", higher_is_better=True),
+    ]
+    weights = [0.4, 0.2, 0.4]
+    ratings = rate_channels(channels, criteria, weights)
+    assert len(ratings) == 2
+    assert ratings[0].rank == 1
+    assert ratings[1].rank == 2

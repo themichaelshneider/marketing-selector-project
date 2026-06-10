@@ -4,63 +4,69 @@
 вычисления интегральных оценок альтернатив.
 """
 
+import logging
+from functools import lru_cache
+
 import numpy as np
 from skcriteria import mkdm, Objective
 from skcriteria.agg.simple import WeightedSumModel
 from skcriteria.preprocessing.scalers import SumScaler
+
 from core.models import ChannelData, CriterionDef, ChannelRating
 
+logger = logging.getLogger("marketings.ahp")
 
-def rate_channels(
-    channels: list[ChannelData],
-    criteria: list[CriterionDef],
-    weights: list[float],
+
+@lru_cache(maxsize=16)
+def _rate_channels_impl(
+    channels_tuple: tuple,
+    criteria_tuple: tuple,
+    weights_tuple: tuple,
 ) -> list[ChannelRating]:
-    """Ранжирует каналы по взвешенной сумме нормализованных критериев.
+    """Внутренняя функция с кэшированием (hashable-аргументы)."""
+    channels = [
+        ChannelData(name=t[0], reach=t[1], cac=t[2], relevance=t[3])
+        for t in channels_tuple
+    ]
+    criteria = [
+        CriterionDef(name=t[0], key=t[1], higher_is_better=t[2])
+        for t in criteria_tuple
+    ]
+    weights = list(weights_tuple)
 
-    channels: список каналов с их характеристиками
-    criteria: критерии оценки (с направлением MAX или MIN)
-    weights:  веса критериев (должны суммироваться в 1)
-
-    Возвращает список ChannelRating, отсортированный по рангу.
-    """
-    # Строим матрицу решений: строки = каналы, столбцы = критерии
     matrix = np.array([
         [getattr(ch, c.key) for c in criteria]
         for ch in channels
     ], dtype=float)
 
-    # Определяем направления критериев
     objectives = []
     for c in criteria:
         objectives.append(Objective.MAX if c.higher_is_better else Objective.MIN)
 
-    # WeightedSumModel работает только с MAX-направлением,
-    # поэтому инвертируем MIN-критерии: x → max(col) - x
     inverted = matrix.copy()
     for col_idx, obj in enumerate(objectives):
         if obj == Objective.MIN:
-            inverted[:, col_idx] = np.max(inverted[:, col_idx]) - inverted[:, col_idx]
+            col = inverted[:, col_idx]
+            col_max = np.max(col)
+            col_min = np.min(col)
+            if col_max != col_min:
+                inverted[:, col_idx] = col_max - col
+            else:
+                inverted[:, col_idx] = 1.0
 
-    # Все критерии теперь MAX
     objectives_max = [Objective.MAX] * len(objectives)
 
-    # Создаём матрицу решений scikit-criteria
     dm = mkdm(inverted, objectives_max, weights=weights)
 
-    # Нормализация: суммарное масштабирование (деление на сумму по столбцу)
     scaler = SumScaler("matrix")
     dm_scaled = scaler.transform(dm)
 
-    # Метод взвешенной суммы
     wsm = WeightedSumModel()
     result = wsm.evaluate(dm_scaled)
 
-    # Извлекаем интегральные оценки (может быть массив или скаляр для 1 альтернативы)
     raw_scores = result.e_["score"]
     scores = np.atleast_1d(raw_scores)
 
-    # Формируем результат с оценками и рангами
     ranks = np.atleast_1d(result.rank_)
     ratings = []
     for i in range(len(channels)):
@@ -72,3 +78,22 @@ def rate_channels(
 
     ratings.sort(key=lambda r: r.rank)
     return ratings
+
+
+def rate_channels(
+    channels: list[ChannelData],
+    criteria: list[CriterionDef],
+    weights: list[float],
+) -> list[ChannelRating]:
+    """Ранжирует каналы по взвешенной сумме нормализованных критериев."""
+    channels_key = tuple(
+        (ch.name, ch.reach, ch.cac, ch.relevance) for ch in channels
+    )
+    criteria_key = tuple(
+        (c.name, c.key, c.higher_is_better) for c in criteria
+    )
+    weights_key = tuple(weights)
+
+    logger.debug("rate_channels вызван: %d каналов, %d критериев",
+                 len(channels), len(criteria))
+    return _rate_channels_impl(channels_key, criteria_key, weights_key)

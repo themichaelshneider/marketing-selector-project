@@ -1,0 +1,37 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-8.4.2, pluggy-1.6.0
+rootdir: /Users/ivanperevozchikov/Documents/MarketingSelector
+plugins: anyio-4.11.0, cov-7.1.0, metadata-3.1.1, html-4.2.0, rerunfailures-16.1
+collected 19 items
+
+tests/test_ahp.py ......                                                 [ 31%]
+tests/test_game.py ......                                                [ 63%]
+tests/test_integration.py ..                                             [ 73%]
+tests/test_payoffs.py .....                                              [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.13.7-final-0 _______________
+
+Name                        Stmts   Miss  Cover   Missing
+---------------------------------------------------------
+core/__init__.py                0      0   100%
+core/ahp.py                    46      0   100%
+core/game.py                   14      0   100%
+core/models.py                 28      0   100%
+data/__init__.py                0      0   100%
+data/channels.py               38     16    58%   28-30, 35-38, 41-43, 48-50, 63-65
+data/payoffs.py                26      0   100%
+tests/__init__.py               0      0   100%
+tests/test_ahp.py              47      0   100%
+tests/test_game.py             53      0   100%
+tests/test_integration.py      32      0   100%
+tests/test_payoffs.py          31      0   100%
+ui/__init__.py                  0      0   100%
+ui/app.py                      67     67     0%   7-189
+ui/components.py               30     30     0%   3-62
+utils/__init__.py               0      0   100%
+utils/cache.py                 15     15     0%   3-27
+utils/logger.py                12      0   100%
+---------------------------------------------------------
+TOTAL                         439    128    71%
+============================== 19 passed in 2.17s ==============================

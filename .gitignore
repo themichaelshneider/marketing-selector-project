@@ -12,3 +12,5 @@ dist/
 .tox/
 build/
 *.log
+docs/coverage/html/
+docs/coverage/annotate/
