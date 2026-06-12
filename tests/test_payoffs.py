@@ -5,71 +5,47 @@ import numpy as np
 from data.payoffs import build_payoff_matrix
 from core.models import ChannelData
 
+KW = dict(competitor_budget=800000, competitor_margin=0.30,
+           competition_beta=0.5, avg_revenue_per_client=15000)
+
 
 def test_same_channel_split():
-    """Если оба выбрали один канал — аудитория делится поровну."""
-    channels = [
-        ChannelData(name="A", reach=100, cac=0, relevance=10),
-    ]
+    channels = [ChannelData(name="A", reach=100, cac=500, relevance=10)]
     A, B = build_payoff_matrix(
-        channels, budget=0, margin=1.0, conversion=1.0, market_size=1000
-    )
-    # reach=100% -> 1000 чел, пополам = 500 чел -> 500 прибыли
-    expected = 500.0
-    assert A[0, 0] == pytest.approx(expected)
-    assert B[0, 0] == pytest.approx(expected)
+        channels, budget=0, margin=1.0, conversion=1.0, market_size=1000, **KW)
+    assert A[0, 0] == pytest.approx(500 * 14500 * 1.0)
+    assert B[0, 0] == pytest.approx(500 * 14500 * 0.30 - 800000)
 
 
 def test_different_channels():
-    """Если игроки выбрали разные каналы — пересечения нет."""
     channels = [
-        ChannelData(name="A", reach=80, cac=0, relevance=5),
-        ChannelData(name="B", reach=40, cac=0, relevance=5),
+        ChannelData(name="A", reach=80, cac=1000, relevance=5),
+        ChannelData(name="B", reach=40, cac=2000, relevance=5),
     ]
     A, B = build_payoff_matrix(
-        channels, budget=0, margin=1.0, conversion=1.0, market_size=1000
-    )
-    # A выбирает A (0), B выбирает B (1)
-    profit_a = (80 / 100.0) * 1000  # 800
-    profit_b = (40 / 100.0) * 1000  # 400
-    assert A[0, 1] == pytest.approx(profit_a)
-    assert B[0, 1] == pytest.approx(profit_b)
+        channels, budget=0, margin=1.0, conversion=1.0, market_size=1000, **KW)
+    # eff_i = 80 * (1 - 0.5 * 40/100) = 64, clients = 640, net = 14000
+    assert A[0, 1] == pytest.approx(640 * 14000 * 1.0)
+    assert B[0, 1] == pytest.approx(240 * 13000 * 0.30 - 800000)
 
 
-def test_budget_deducted():
-    """Бюджет должен вычитаться из прибыли."""
+def test_asymmetric_players():
     channels = [
-        ChannelData(name="A", reach=50, cac=0, relevance=5),
+        ChannelData(name="A", reach=80, cac=1000, relevance=5),
+        ChannelData(name="B", reach=40, cac=2000, relevance=5),
     ]
     A, B = build_payoff_matrix(
-        channels, budget=200, margin=1.0, conversion=1.0, market_size=1000
-    )
-    # Прибыль до вычета: 500, после вычета бюджета: 300
-    # Но т.к. канал один, аудитория делится: 250 - 200 = 50
-    expected = (50 / 100.0) * 1.0 * 1.0 * 1000 / 2.0 - 200  # 250 - 200 = 50
-    assert A[0, 0] == pytest.approx(expected)
+        channels, budget=500_000, margin=0.25, conversion=0.03, market_size=1_000_000,
+        competitor_budget=400_000, competitor_margin=0.20,
+        competition_beta=0.5, avg_revenue_per_client=15000)
+    assert not np.allclose(B, A.T), "B == A.T — игра вырождена"
 
 
-def test_zero_market():
-    """При нулевом рынке прибыль = -бюджет."""
+def test_cac_affects_payoff():
     channels = [
-        ChannelData(name="A", reach=80, cac=0, relevance=5),
+        ChannelData(name="Дешёвый", reach=50, cac=500, relevance=5),
+        ChannelData(name="Дорогой", reach=50, cac=3000, relevance=5),
     ]
     A, _ = build_payoff_matrix(
-        channels, budget=500, margin=1.0, conversion=1.0, market_size=0
-    )
-    assert A[0, 0] == pytest.approx(-500.0)
-
-
-def test_matrix_shape():
-    """Размер матрицы должен соответствовать числу каналов."""
-    channels = [
-        ChannelData(name="A", reach=80, cac=0, relevance=5),
-        ChannelData(name="B", reach=60, cac=0, relevance=5),
-        ChannelData(name="C", reach=40, cac=0, relevance=5),
-    ]
-    A, B = build_payoff_matrix(
-        channels, budget=0, margin=1.0, conversion=1.0, market_size=1000
-    )
-    assert A.shape == (3, 3)
-    assert B.shape == (3, 3)
+        channels, budget=0, margin=1.0, conversion=1.0, market_size=1000, **KW)
+    assert A[0, 1] > A[1, 0], "Дешёвый канал должен давать больший выигрыш"
