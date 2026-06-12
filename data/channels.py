@@ -42,7 +42,8 @@ def load_config(path: str = "config/params.yaml") -> GameConfig:
         logger.error(msg)
         raise ValueError(msg)
 
-    required_keys = {"channels", "criteria", "budget", "margin", "conversion", "market_size"}
+    required_keys = {"channels", "criteria", "budget", "margin", "conversion", "market_size",
+                     "competitor_budget", "competitor_margin", "competition_beta", "avg_revenue_per_client"}
     missing = required_keys - set(raw.keys())
     if missing:
         msg = f"В конфигурации отсутствуют обязательные поля: {missing}"
@@ -59,6 +60,10 @@ def load_config(path: str = "config/params.yaml") -> GameConfig:
             margin=raw["margin"],
             conversion=raw["conversion"],
             market_size=raw["market_size"],
+            competitor_budget=raw["competitor_budget"],
+            competitor_margin=raw["competitor_margin"],
+            competition_beta=raw["competition_beta"],
+            avg_revenue_per_client=raw["avg_revenue_per_client"],
         )
     except ValidationError as e:
         logger.error("Ошибка валидации данных конфигурации: %s", e)

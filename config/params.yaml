@@ -1,32 +1,24 @@
 # Конфигурация MarketingSelector
-# Определяет каналы продвижения, критерии оценки и параметры расчёта
 
 channels:
-  tv:
-    name: "ТВ"
-    reach: 80          # охват целевой аудитории, %
-    cac: 1500           # стоимость привлечения клиента, руб
-    relevance: 5        # релевантность аудитории канала (1-10)
-
-  youtube:
-    name: "YouTube"
-    reach: 65
-    cac: 800
-    relevance: 7
-
   telegram:
     name: "Telegram"
     reach: 30
-    cac: 300
+    cac: 500
     relevance: 9
 
   search_ads:
     name: "Поисковая реклама"
-    reach: 45
-    cac: 500
+    reach: 50
+    cac: 2000
     relevance: 8
 
-# Критерии для метода АИИ (анализ иерархий)
+  youtube:
+    name: "YouTube"
+    reach: 70
+    cac: 5000
+    relevance: 7
+
 criteria:
   - name: "Охват"
     key: "reach"
@@ -40,8 +32,12 @@ criteria:
     key: "relevance"
     higher_is_better: true
 
-# Параметры расчёта по умолчанию
-budget: 1000000        # бюджет на рекламную кампанию, руб
-margin: 0.25           # маржа (доля прибыли от выручки)
-conversion: 0.03       # конверсия (доля от охвата, совершившая целевое действие)
-market_size: 1000000   # размер целевого рынка, чел
+budget: 1000000
+margin: 0.25
+conversion: 0.03
+market_size: 1000000
+
+competitor_budget: 800000
+competitor_margin: 0.30
+competition_beta: 0.5
+avg_revenue_per_client: 8000

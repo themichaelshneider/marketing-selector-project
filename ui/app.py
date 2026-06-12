@@ -106,8 +106,8 @@ def main() -> None:
         st.header("Шаг 1: оценка каналов (АИИ)")
         render_rankings_table(ratings)
 
-        # Берём топ-3 канала для построения игры
-        top_names = {r.name for r in ratings[:3]}
+        # Берём топ-2 канала для построения игры
+        top_names = {r.name for r in ratings[:2]}
         top_channels = [ch for ch in config.channels if ch.name in top_names]
 
         # ---- Шаг 2: платёжная матрица ---------------------------------
@@ -117,6 +117,10 @@ def main() -> None:
             margin,
             conversion,
             config.market_size,
+            config.competitor_budget,
+            config.competitor_margin,
+            config.competition_beta,
+            config.avg_revenue_per_client,
         )
         channel_names = [ch.name for ch in top_channels]
 
