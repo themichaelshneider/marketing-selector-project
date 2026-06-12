@@ -1,20 +1,38 @@
-"""Ранжирование рекламных каналов методом взвешенной суммы (АИИ).
+"""Ранжирование рекламных каналов методом Аналитических Иерархий (AHP).
 
-Использует scikit-criteria для построения матрицы решений и
-вычисления интегральных оценок альтернатив.
+Реализует метод Саати:
+  1. Построение матриц парных сравнений для каждого критерия
+  2. Расчёт вектора приоритетов (собственный вектор)
 """
 
 import logging
 from functools import lru_cache
 
 import numpy as np
-from skcriteria import mkdm, Objective
-from skcriteria.agg.simple import WeightedSumModel
-from skcriteria.preprocessing.scalers import SumScaler
-
 from core.models import ChannelData, CriterionDef, ChannelRating
 
 logger = logging.getLogger("marketings.ahp")
+
+def _build_pairwise_matrix(values: np.ndarray) -> np.ndarray:
+    n = len(values)
+    P = np.ones((n, n))
+    eps = 1e-12
+    for i in range(n):
+        for j in range(i + 1, n):
+            vi = values[i] + eps
+            vj = values[j] + eps
+            ratio = vi / vj
+            P[i, j] = ratio
+            P[j, i] = 1.0 / ratio
+    return P
+
+
+def _priority_vector(matrix: np.ndarray) -> np.ndarray:
+    eigenvalues, eigenvectors = np.linalg.eig(matrix)
+    lambda_max = np.max(np.real(eigenvalues))
+    idx = np.argmax(np.real(eigenvalues))
+    principal = np.real(eigenvectors[:, idx])
+    return principal / principal.sum()
 
 
 @lru_cache(maxsize=16)
@@ -23,7 +41,6 @@ def _rate_channels_impl(
     criteria_tuple: tuple,
     weights_tuple: tuple,
 ) -> list[ChannelRating]:
-    """Внутренняя функция с кэшированием (hashable-аргументы)."""
     channels = [
         ChannelData(name=t[0], reach=t[1], cac=t[2], relevance=t[3])
         for t in channels_tuple
@@ -32,51 +49,43 @@ def _rate_channels_impl(
         CriterionDef(name=t[0], key=t[1], higher_is_better=t[2])
         for t in criteria_tuple
     ]
-    weights = list(weights_tuple)
+    weights = np.array(list(weights_tuple))
 
-    matrix = np.array([
-        [getattr(ch, c.key) for c in criteria]
-        for ch in channels
-    ], dtype=float)
+    n_alts = len(channels)
+    n_crit = len(criteria)
 
-    objectives = []
-    for c in criteria:
-        objectives.append(Objective.MAX if c.higher_is_better else Objective.MIN)
+    priority_vectors = np.zeros((n_alts, n_crit))
 
-    inverted = matrix.copy()
-    for col_idx, obj in enumerate(objectives):
-        if obj == Objective.MIN:
-            col = inverted[:, col_idx]
-            col_max = np.max(col)
-            col_min = np.min(col)
-            if col_max != col_min:
-                inverted[:, col_idx] = col_max - col
-            else:
-                inverted[:, col_idx] = 1.0
+    for c_idx, criterion in enumerate(criteria):
+        raw = np.array([getattr(ch, criterion.key) for ch in channels], dtype=float)
 
-    objectives_max = [Objective.MAX] * len(objectives)
+        if not criterion.higher_is_better:
+            raw = 1.0 / raw if raw.max() != raw.min() else np.ones_like(raw)
 
-    dm = mkdm(inverted, objectives_max, weights=weights)
+        P = _build_pairwise_matrix(raw)
+        priority_vectors[:, c_idx] = _priority_vector(P)
 
-    scaler = SumScaler("matrix")
-    dm_scaled = scaler.transform(dm)
+    scores = priority_vectors @ weights
+    scores /= scores.sum()
 
-    wsm = WeightedSumModel()
-    result = wsm.evaluate(dm_scaled)
+    rankings = np.argsort(-scores)
 
-    raw_scores = result.e_["score"]
-    scores = np.atleast_1d(raw_scores)
-
-    ranks = np.atleast_1d(result.rank_)
     ratings = []
-    for i in range(len(channels)):
+    for rank_pos, idx in enumerate(rankings):
         ratings.append(ChannelRating(
-            name=channels[i].name,
-            score=float(scores[i]),
-            rank=int(ranks[i]),
+            name=channels[idx].name,
+            score=float(scores[idx]),
+            rank=rank_pos + 1,
         ))
 
-    ratings.sort(key=lambda r: r.rank)
+    weights_norm = weights / weights.sum()
+    logger.info(
+        "AHP-ранжирование завершено: %d каналов, веса=%s, лидер=%s",
+        n_alts,
+        [round(w, 3) for w in weights_norm],
+        ratings[0].name,
+    )
+
     return ratings
 
 
@@ -85,7 +94,6 @@ def rate_channels(
     criteria: list[CriterionDef],
     weights: list[float],
 ) -> list[ChannelRating]:
-    """Ранжирует каналы по взвешенной сумме нормализованных критериев."""
     channels_key = tuple(
         (ch.name, ch.reach, ch.cac, ch.relevance) for ch in channels
     )

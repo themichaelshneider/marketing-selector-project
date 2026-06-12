@@ -43,3 +43,7 @@ class GameConfig(BaseModel):
     margin: float = Field(gt=0, le=1, description="Маржа (доля прибыли от выручки)")
     conversion: float = Field(gt=0, le=1, description="Конверсия (доля от охвата)")
     market_size: float = Field(gt=0, description="Размер целевого рынка, чел")
+    competitor_budget: float = Field(gt=0, description="Бюджет конкурента, руб")
+    competitor_margin: float = Field(gt=0, le=1, description="Маржа конкурента (доля)")
+    competition_beta: float = Field(ge=0, le=1, description="Коэф. конкурентного давления (0-1)")
+    avg_revenue_per_client: float = Field(gt=0, description="Средняя выручка на клиента, руб")
